@@ -10,7 +10,7 @@ using namespace std;
 #define networking_regex regex(R"(socket|(WS2_32|NETAPI|WSOCK(32)?)\.dll)", std::regex_constants::ECMAScript | std::regex_constants::icase)
 #define file_regex regex(R"(/fstream|COMCTL32\.dll/gmi)", std::regex_constants::ECMAScript | std::regex_constants::icase)
 #define persistence_regex regex(R"(abcdefghijk)", std::regex_constants::ECMAScript | std::regex_constants::icase)
-#define base64encoding regex(R"(abcdefghijk)", std::regex_constants::ECMAScript | std::regex_constants::icase)
+#define base64encoding regex(R"([A-Za-z0-9+\/]{25,}=?=?)", std::regex_constants::ECMAScript | std::regex_constants::icase)
 #define find_files regex(R"(([A-Z]:\\)?([\w!@#$%&()_+{}[\];',.\- ]+\\)+([\w!@#$%&()_+{}[\];',.\- ]+)?)", std::regex_constants::ECMAScript | std::regex_constants::icase)
 
 void detectcapability(string instring, regex regstr, bool outbool, string printstring){
