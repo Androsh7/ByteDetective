@@ -4,44 +4,104 @@
 #include <regex>
 using namespace std;
 
-#define minstrlength 1 // any sequence of characters less than this is excluded from search
-#define maxstrlength 65536 // max number of bytes to parse at once
+#define dll_list_len 13
+const string know_dll_list[dll_list_len] = {"HAL", "NTDLL", "KERNEL32",          "GDI32", "USER32",      "COMCTL32", "WS2_32", "WSOCK",  "WSOCK32", "COMDLG32", "ADVAPI32", "NETAPI32", "OLE32"};
+const string know_dll_use[dll_list_len] =  {"BASE" "BASE",	"FILE_IO|PROC_MGMT", "GUI",   "GUI|KEYDATA", "FILE_IO",  "SOCKET", "SOCKET", "SOCKET",  "APP",      "REGISTER", "SOCKET"  , "OTHER"};
 
-#define networking_regex regex(R"(socket|(WS2_32|NETAPI|WSOCK(32)?)\.dll)", std::regex_constants::ECMAScript | std::regex_constants::icase)
-#define file_regex regex(R"(/fstream|COMCTL32\.dll/gmi)", std::regex_constants::ECMAScript | std::regex_constants::icase)
-#define persistence_regex regex(R"(abcdefghijk)", std::regex_constants::ECMAScript | std::regex_constants::icase)
-#define base64encoding regex(R"([A-Za-z0-9+\/]{25,}=?=?)", std::regex_constants::ECMAScript | std::regex_constants::icase)
-#define find_files regex(R"(([A-Z]:\\)?([\w!@#$%&()_+{}[\];',.\- ]+\\)+([\w!@#$%&()_+{}[\];',.\- ]+)?)", std::regex_constants::ECMAScript | std::regex_constants::icase)
+int main(int argc, char* argv[]) {
+    cout << "----- StringAnalysis V0.2 by: Androsh7 ------\n";
 
-void detectcapability(string instring, regex regstr, bool outbool, string printstring){
-    smatch results;
-    regex_search(instring, results, regstr);
-    if (results.empty()) return;
-    cout << printstring << endl;
-    for (auto item : results){
-        cout << item << endl;
-    }
-}
-
-int main() {
-    string filename = "GhidraTester.exe";
-    ifstream binfile(filename, std::ios::binary);
-    if (!binfile) {
-        cerr << "Failed to open binary file!" << endl;
+    // checks for 2 to 3 arguments
+    if (argc < 2 || argc > 5){
+        cerr << "Invalid Arguments, expected between 1 and 3 arguments and received " << argc - 1 << " arguments\n";
         return 1;
     }
 
-    // defines capability flags
-    bool networking = false;
-    bool file = false;
-    bool persistence = false;
-    bool base64 = false;
-    
-    while (binfile){
+    // command flags
+    bool bintostr = false;
+    bool analysis = false;
+    bool debug = false;
+    bool help = false;
 
-        string search_str = "";
+    // fills out flags according to user entered flags
+    int argcount = 1;
+    for (argcount = 1; argcount < argc; argcount++){
+        string argument = argv[argcount];
+        cout << argument << '\n';
+        int argsize = argument.size();
+        if (argument.at(0) != '-' && argument.at(0) != '/'){
+            break;
+        }
+        
+        // single character arguments (short hand)
+        if (argument.at(1) != '-'){
+            if (argument.find('b') < argsize) bintostr = true;
+            if (argument.find('a') < argsize) analysis = true;
+            if (argument.find('d') < argsize) debug = true;
+            if (argument == "/?") help = true;
+        }
 
-        // adds newline delimited character sequences to the search string until the string reaches the maxstrlength or reaches the end of the file
+        // string arguments (long hand)
+        else if (argument.at(1) == '-'){
+            if (argument == "--bintostr") bintostr = true;
+            else if (argument == "--analysis") analysis = true;
+            else if (argument == "--help") help = true;
+            else if (argument == "--debug") debug = true;
+        }
+    }
+
+    string filename = "";
+    int minstrlen = 4;
+    if (bintostr || analysis){
+        if (argcount >= argc){
+            cerr << "INSUFFICIENT ARGUMENTS: No filename was specified\n";
+            return 1;
+        }
+        filename = string(argv[argcount]);
+    }
+
+    if (debug){
+        cout << "User Selection flags:\n"
+        << "bintostr: " << bintostr << '\n'
+        << "analysis: " << analysis << '\n'
+        << "help: " << help << '\n'
+        << "debug: " << debug << '\n'
+        << "filename: " << filename << '\n';
+    }
+
+    if (!bintostr && !analysis && !help) {
+        cout << "No valid option provided\n\n";
+        help = true;
+    }
+
+    // help arguments
+    if (help){
+        cout
+        << "malware_analysis V0.2: a tool made by Androsh7 for analyzing executable binaries and determining potential capabilities\n\nSyntax:\n" 
+        << "\t-b, --bintostr {binaryfile} [minstrlen] : this reads an executable binary and trys to grab strings of a length equal to or greater than minstrlen The strings are then written to a new file which is made by appending '.string' to the filename i.e: malware.exe becomes malware.exe.string. Note the default for minstrlen is 4 characters\n"
+        << "\t-a, --analysis {stringfile} : this reads a string file (create with option -b) and creates a report and writes it to a newfile named by appending '.report' to the filename i.e: malware.exe.string becomes malware.exe.string.report\n"
+        << "\t-d, --debug : this prints optional debug optional (similar to -v verbose option on linux commands)\n"
+        << "\t/\?, --help : brings up this help menu\n";
+        return 0;
+    }
+    // read binary executable and write strings to text file
+    if (bintostr){
+
+        // opens file specified with filename and creates new file: 'filename.string' for the output
+        ifstream binfile(filename, std::ios::binary);
+        ofstream strdata(filename + ".string", std::ios::out);
+        if (!binfile) {
+            cerr << "Failed to open binary file!" << endl;
+            return 2;
+        }
+        if (debug) cout << "successfully opened " << filename << " for reading\n";
+        if (!strdata.is_open()){
+            cerr << "Failed to open output file!" << endl;
+            return 2;
+        }
+        if (debug) cout << "successfully opened " << filename + ".string" << " for writing\n";
+        
+        // reads the binfile and returns each ASCII string matching the minstrlength to the  foundstrings.txt file
         while (binfile){
             
             // grabs printable characters from the 
@@ -49,26 +109,76 @@ int main() {
             while(binfile){
                 char character;
                 binfile.get(character);
+                
                 if (character >= 0x20 && character <= 0x7E){ // all valid ASCII characters
                     outstring += character;
                 }
                 else break;
             }
 
-            if (search_str.length() < minstrlength) continue; // restart if the outstring is not large enough
-            search_str += outstring;
-            cout << outstring << endl;
-            cout << outstring << endl;
-            if (search_str.length() < maxstrlength) search_str += '\n'; // add a newline if there are more characters to come
-            else break; // break from loop once max length is reached
+            if (outstring.length() < minstrlen) continue; // restart if the outstring is not large enough
+            strdata << outstring << '\n';
+            //if (debug_mode) cout << outstring << endl;
+        }
+        binfile.close();
+        strdata.close();
+
+        filename += ".string";
+    }
+    
+    // perform analysis on a .string file and generates a report
+    if (analysis){
+        // check flags
+        vector<string> base64;
+        vector<string> dll;
+        vector<string> web;
+        bool networking;
+        bool registry;
+
+        ifstream stringfile;
+        stringfile.open(filename, std::ios::in);
+        if (!stringfile.is_open()){
+            cerr << "Failed to open file " << filename << " for reading\n";
+            return 2;
+        }
+        cout << "Successfully opened " << filename << " for reading\n";
+
+        int linenum = 0;
+        while (stringfile.is_open() && !stringfile.eof()){
+            string line;
+            getline(stringfile, line);
+
+            if (linenum % 10000 == 0 && linenum != 0){
+                cout << "Reading line " << linenum << endl;
+            }
+            
+            // Simple DLL detection
+            if (regex_match(line,regex(R"(\w+\.dll)", regex::icase))){
+                string outstr = "Line " + to_string(linenum) + " - " + line;
+                dll.push_back(outstr);
+            }
+
+            // Base64 encoding detection
+            if (regex_match(line,regex(R"([a-zA-Z0-9+/]{30,}=?=?|[a-zA-Z0-9+/]{10,}==?)"))){
+                string outstr = "Line " + to_string(linenum) + " - " + line;
+                base64.push_back(outstr);
+            }
+            linenum++;
+        }
+        cout << "Closed file " << filename << "\n\n";
+        cout << "----- REPORT -----\n"
+        << "Line numbers based on " << filename << "\n";
+        
+        // print DLLS
+        cout << "DLLS found:\n";
+        for (int i = 0; i < dll.size(); i++){
+            cout << '\t' << dll.at(i) << '\n';
         }
 
-        // checks for capabilities
-        detectcapability(search_str, networking_regex, networking, "----- NETWORKING CAPABILITY DETECTED -----");
-        detectcapability(search_str, file_regex, file, "----- FILE EDITING CAPABILITY DETECTED -----");
-        detectcapability(search_str, persistence_regex, persistence, "----- PERSISTENCE CAPABILITY DETECTED -----");
-        detectcapability(search_str, find_files, NULL, "----- INTERESTING FILES FOUND -----");
+        // print Base64 Encoding
+        cout << "Base64 Encoding Detected:\n";
+        for (int i = 0; i < base64.size(); i++){
+            cout << '\t' << base64.at(i) << '\n';
+        }
     }
-    binfile.close();
-    return 0;
 }
