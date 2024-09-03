@@ -1,3 +1,5 @@
+# WIP - Not fully functional
+
 This is a simple tool that reads executable binaries and can perform automated string analysis
 
 
