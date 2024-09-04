@@ -1,4 +1,4 @@
-# Malware Analysis
+# Malware_Analysis
 This is a simple tool that reads executable binaries and can perform automated string analysis
 
 
