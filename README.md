@@ -1,5 +1,4 @@
-# WIP - Not fully functional
-
+# Malware Analysis
 This is a simple tool that reads executable binaries and can perform automated string analysis
 
 
